@@ -24,3 +24,13 @@ $ ws ws://localhost:3000/ws
 > ^D
 EOF
 ```
+
+use command **@audio:** to upload local audio file to the server as a websocket binary message
+
+```
+$ ws ws://localhost:8080/endpoint
+> {"audio_format":{"type":"MP3"}, "begin_silence_in_milli":2000, "end_silence_in_milli":2000}
+> @audio:/Users/lls/Downloads/bug-audio.mp3
+> EOS
+< {"type":"success","request_id":"bj9pmf5tgsakv6qkuee0","data":{"endpoint_detected":false,"endpoint_position_in_milli":0}}
+```

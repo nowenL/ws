@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/chzyer/readline"
 	"github.com/fatih/color"
@@ -17,9 +19,10 @@ type session struct {
 	errChan chan error
 }
 
-func connect(url, origin string, rlConf *readline.Config) error {
+func connect(url, origin, auth string, rlConf *readline.Config) error {
 	headers := make(http.Header)
 	headers.Add("Origin", origin)
+	headers.Add("Authorization", auth)
 
 	ws, _, err := websocket.DefaultDialer.Dial(url, headers)
 	if err != nil {
@@ -52,12 +55,37 @@ func (s *session) readConsole() {
 			return
 		}
 
-		err = s.ws.WriteMessage(websocket.TextMessage, []byte(line))
-		if err != nil {
-			s.errChan <- err
-			return
+		if strings.HasPrefix(line, "@audio:") {
+			tokens := strings.Split(line, ":")
+			if len(tokens) != 2 {
+				s.printWarning("Invalid command iput: " + line)
+				continue
+			}
+			filePath := tokens[1]
+			audioData, err := ioutil.ReadFile(filePath)
+			if err != nil {
+				s.printWarning("Fail to read file '" + filePath + "' : " + err.Error())
+				continue
+			}
+
+			err = s.ws.WriteMessage(websocket.BinaryMessage, audioData)
+			if err != nil {
+				s.errChan <- err
+				return
+			}
+		} else {
+			err = s.ws.WriteMessage(websocket.TextMessage, []byte(line))
+			if err != nil {
+				s.errChan <- err
+				return
+			}
 		}
 	}
+}
+
+func (s *session) printWarning(text string) {
+	rxSprintf := color.New(color.FgYellow).SprintfFunc()
+	fmt.Fprint(s.rl.Stdout(), rxSprintf("< %s\n", text))
 }
 
 func bytesToFormattedHex(bytes []byte) string {
